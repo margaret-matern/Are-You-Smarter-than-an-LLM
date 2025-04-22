@@ -93,7 +93,7 @@ const QuestionInterface: React.FC = () => {
                 <button
                   key={index}
                   onClick={() => selectAnswer(option)}
-                  disabled={selectedAnswer !== null}
+                  disabled={showingExplanation} // Only disable after submitting answer
                   className={cn(
                     "w-full text-left px-4 py-3 border rounded-md flex items-center space-x-3 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-colors",
                     selectedAnswer === option

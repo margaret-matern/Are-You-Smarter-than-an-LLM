@@ -7,12 +7,49 @@ const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
 export async function generateQuestions(difficulty: string, numQuestions: number) {
   try {
+    // For large number of questions, break into smaller batches
+    if (numQuestions > 5) {
+      console.log(`Generating ${numQuestions} questions in batches...`);
+      
+      // Generate questions in batches of 5
+      const batches = Math.ceil(numQuestions / 5);
+      const batchResults = [];
+      
+      for (let i = 0; i < batches; i++) {
+        const batchSize = Math.min(5, numQuestions - (i * 5));
+        console.log(`Generating batch ${i+1}/${batches} with ${batchSize} questions...`);
+        
+        const batchQuestions = await generateQuestionBatch(difficulty, batchSize);
+        batchResults.push(...batchQuestions);
+        
+        // Make sure we have enough questions
+        if (batchResults.length >= numQuestions) {
+          break;
+        }
+      }
+      
+      // Return the requested number of questions
+      return batchResults.slice(0, numQuestions);
+    } else {
+      // Generate a single batch for 5 or fewer questions
+      return await generateQuestionBatch(difficulty, numQuestions);
+    }
+  } catch (error) {
+    console.error("Error generating questions:", error);
+    throw error;
+  }
+}
+
+// Helper function to generate a batch of questions
+async function generateQuestionBatch(difficulty: string, numQuestions: number) {
+  try {
+    // Make sure to use varied vocabulary and avoid duplicates
     const response = await openai.chat.completions.create({
       model: OPENAI_MODEL,
       messages: [
         {
           role: "system",
-          content: "You are a vocabulary expert who creates challenging and educational questions about words, their meanings, and relationships."
+          content: "You are a vocabulary expert who creates challenging and educational questions about words, their meanings, and relationships. Use diverse vocabulary words without repetition."
         },
         {
           role: "user",
@@ -22,10 +59,11 @@ export async function generateQuestions(difficulty: string, numQuestions: number
           - All questions should be at ${difficulty} difficulty level
           - Each question should have exactly 4 options (A, B, C, D)
           - Include the correct answer and a detailed explanation for each question
-          - For MCQs, ask about challenging vocabulary words and their definitions
+          - For MCQs, use diverse vocabulary words - DO NOT repeat words across questions
           - For analogies, follow the format "WORD1 is to WORD2 as WORD3 is to: [options]"
+          - Use different types of words (nouns, verbs, adjectives) across questions
           
-          Respond with a JSON array where each question object has these properties:
+          Respond with a JSON array named "questions" where each question object has these properties:
           - type: "mcq" or "analogy"
           - question: the question text
           - options: array of 4 string options
@@ -47,7 +85,7 @@ export async function generateQuestions(difficulty: string, numQuestions: number
     const result = JSON.parse(content);
     return result.questions || [];
   } catch (error) {
-    console.error("Error generating questions:", error);
+    console.error("Error generating question batch:", error);
     throw error;
   }
 }
