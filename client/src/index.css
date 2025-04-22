@@ -1,0 +1,100 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --background: 210 40% 98%;
+  --foreground: 222.2 47.4% 11.2%;
+  --muted: 210 40% 96.1%;
+  --muted-foreground: 215.4 16.3% 46.9%;
+  --popover: 0 0% 100%;
+  --popover-foreground: 222.2 47.4% 11.2%;
+  --card: 0 0% 100%;
+  --card-foreground: 222.2 47.4% 11.2%;
+  --border: 214.3 31.8% 91.4%;
+  --input: 214.3 31.8% 91.4%;
+  --primary: 246 80% 60%;
+  --primary-foreground: 210 40% 98%;
+  --secondary: 267 83% 63%;
+  --secondary-foreground: 222.2 47.4% 11.2%;
+  --accent: 210 40% 96.1%;
+  --accent-foreground: 222.2 47.4% 11.2%;
+  --destructive: 0 84.2% 60.2%;
+  --destructive-foreground: 210 40% 98%;
+  --success: 142 70% 40%;
+  --success-foreground: 210 40% 98%;
+  --ring: 215 20.2% 65.1%;
+  --radius: 0.5rem;
+  --chart-1: 246 80% 60%;
+  --chart-2: 267 83% 63%;
+  --chart-3: 50 80% 50%;
+  --chart-4: 20 80% 65%;
+  --chart-5: 200 80% 50%;
+}
+
+.dark {
+  --background: 224 71% 4%;
+  --foreground: 213 31% 91%;
+  --muted: 223 47% 11%;
+  --muted-foreground: 215.4 16.3% 56.9%;
+  --popover: 224 71% 4%;
+  --popover-foreground: 215 20.2% 65.1%;
+  --card: 224 71% 4%;
+  --card-foreground: 213 31% 91%;
+  --border: 216 34% 17%;
+  --input: 216 34% 17%;
+  --primary: 246 80% 60%;
+  --primary-foreground: 210 40% 98%;
+  --secondary: 267 83% 63%;
+  --secondary-foreground: 210 40% 98%;
+  --accent: 216 34% 17%;
+  --accent-foreground: 210 40% 98%;
+  --destructive: 0 63% 31%;
+  --destructive-foreground: 210 40% 98%;
+  --success: 142 70% 40%;
+  --success-foreground: 210 40% 98%;
+  --ring: 216 34% 17%;
+  --radius: 0.5rem;
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply font-sans antialiased bg-background text-foreground;
+  }
+}
+
+/* Custom gradient button */
+.gradient-btn {
+  @apply bg-gradient-to-r from-primary to-secondary text-white;
+}
+
+/* Timer colors */
+.timer-normal {
+  @apply bg-green-100 text-green-800;
+}
+
+.timer-warning {
+  @apply bg-yellow-100 text-yellow-800;
+}
+
+.timer-danger {
+  @apply bg-red-100 text-red-800;
+}
+
+/* Answer status badges */
+.answer-correct {
+  @apply bg-green-100 text-green-800;
+}
+
+.answer-incorrect {
+  @apply bg-red-100 text-red-800;
+}
+
+/* Question type badges */
+.question-badge {
+  @apply inline-flex items-center px-2.5 py-0.5 rounded-md text-sm font-medium bg-indigo-100 text-indigo-800;
+}
