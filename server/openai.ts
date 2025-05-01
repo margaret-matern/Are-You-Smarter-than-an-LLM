@@ -5,11 +5,28 @@ const OPENAI_MODEL = "gpt-4o";
 
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
+// Track words used across all batches to prevent repetition
+let usedVocabularyWords = new Set();
+let usedAnalogyWords = new Set();
+
+// Function to extract words from a string for tracking
+function extractVocabularyWords(text) {
+  // Extract individual words, ignoring common words, articles, prepositions, etc.
+  const words = text.toLowerCase().match(/\b[a-z]{5,}\b/g) || [];
+  return new Set(words);
+}
+
 export async function generateQuestions(difficulty: string, numQuestions: number) {
   try {
+    // Reset the used words when starting a new question set
+    usedVocabularyWords.clear();
+    usedAnalogyWords.clear();
+    
+    console.log(`Generating ${numQuestions} unique vocabulary questions at ${difficulty} difficulty...`);
+    
     // For large number of questions, break into smaller batches
     if (numQuestions > 5) {
-      console.log(`Generating ${numQuestions} questions in batches...`);
+      console.log(`Breaking into batches of 5 questions each...`);
       
       // Generate questions in batches of 5
       const batches = Math.ceil(numQuestions / 5);
@@ -19,7 +36,27 @@ export async function generateQuestions(difficulty: string, numQuestions: number
         const batchSize = Math.min(5, numQuestions - (i * 5));
         console.log(`Generating batch ${i+1}/${batches} with ${batchSize} questions...`);
         
-        const batchQuestions = await generateQuestionBatch(difficulty, batchSize);
+        // Pass the previously used words to avoid repetition
+        const batchQuestions = await generateQuestionBatch(
+          difficulty, 
+          batchSize, 
+          Array.from(usedVocabularyWords), 
+          Array.from(usedAnalogyWords)
+        );
+        
+        // Update the sets of used words with new words from this batch
+        for (const question of batchQuestions) {
+          if (question.type === "mcq") {
+            // Extract word being defined from the question
+            const questionWords = extractVocabularyWords(question.question);
+            questionWords.forEach(word => usedVocabularyWords.add(word));
+          } else if (question.type === "analogy") {
+            // Extract words from analogy
+            const analogyWords = extractVocabularyWords(question.question);
+            analogyWords.forEach(word => usedAnalogyWords.add(word));
+          }
+        }
+        
         batchResults.push(...batchQuestions);
         
         // Make sure we have enough questions
@@ -28,11 +65,13 @@ export async function generateQuestions(difficulty: string, numQuestions: number
         }
       }
       
+      console.log(`Generated ${batchResults.length} unique questions successfully.`);
+      
       // Return the requested number of questions
       return batchResults.slice(0, numQuestions);
     } else {
       // Generate a single batch for 5 or fewer questions
-      return await generateQuestionBatch(difficulty, numQuestions);
+      return await generateQuestionBatch(difficulty, numQuestions, [], []);
     }
   } catch (error) {
     console.error("Error generating questions:", error);
@@ -41,27 +80,42 @@ export async function generateQuestions(difficulty: string, numQuestions: number
 }
 
 // Helper function to generate a batch of questions
-async function generateQuestionBatch(difficulty: string, numQuestions: number) {
+async function generateQuestionBatch(
+  difficulty: string, 
+  numQuestions: number, 
+  avoidVocabWords: string[] = [], 
+  avoidAnalogyWords: string[] = []
+) {
   try {
-    // Make sure to use varied vocabulary and avoid duplicates
+    // Create a prompt that ensures uniqueness
+    const avoidVocabWordsText = avoidVocabWords.length > 0 
+      ? `\n- IMPORTANT: Do NOT use any of these vocabulary words that have already been used: ${avoidVocabWords.join(', ')}` 
+      : '';
+    
+    const avoidAnalogyWordsText = avoidAnalogyWords.length > 0 
+      ? `\n- IMPORTANT: Do NOT use any of these analogy words that have already been used: ${avoidAnalogyWords.join(', ')}` 
+      : '';
+
+    // Make request with enhanced uniqueness instructions
     const response = await openai.chat.completions.create({
       model: OPENAI_MODEL,
       messages: [
         {
           role: "system",
-          content: "You are a vocabulary expert who creates challenging and educational questions about words, their meanings, and relationships. Use diverse vocabulary words without repetition."
+          content: "You are a vocabulary expert who creates challenging and educational questions about words, their meanings, and relationships. You must ensure complete uniqueness - no repeating words across any questions."
         },
         {
           role: "user",
-          content: `Generate ${numQuestions} vocabulary questions with the following requirements:
+          content: `Generate ${numQuestions} completely unique vocabulary questions with the following requirements:
           - Approximately 60% should be multiple choice questions about word definitions (type: "mcq")
           - Approximately 40% should be analogy questions (type: "analogy")
           - All questions should be at ${difficulty} difficulty level
           - Each question should have exactly 4 options (A, B, C, D)
           - Include the correct answer and a detailed explanation for each question
-          - For MCQs, use diverse vocabulary words - DO NOT repeat words across questions
+          - For MCQs, each question must be about a completely different vocabulary word
           - For analogies, follow the format "WORD1 is to WORD2 as WORD3 is to: [options]"
           - Use different types of words (nouns, verbs, adjectives) across questions
+          - ENSURE DIVERSITY: Each question must feature completely different vocabulary words${avoidVocabWordsText}${avoidAnalogyWordsText}
           
           Respond with a JSON array named "questions" where each question object has these properties:
           - type: "mcq" or "analogy"
@@ -73,7 +127,8 @@ async function generateQuestionBatch(difficulty: string, numQuestions: number) {
           `
         }
       ],
-      response_format: { type: "json_object" }
+      response_format: { type: "json_object" },
+      temperature: 1.0 // Increase creativity to get more diverse results
     });
 
     // Parse the JSON response
