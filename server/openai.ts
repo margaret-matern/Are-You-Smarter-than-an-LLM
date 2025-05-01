@@ -118,11 +118,11 @@ export async function getAIAnswer(question: string, options: string[]) {
       messages: [
         {
           role: "system",
-          content: "You are answering a vocabulary question to the best of your ability. Select only one of the provided options as your answer."
+          content: "You are answering a vocabulary or analogy question. Select the correct answer from the available options."
         },
         {
           role: "user",
-          content: `Answer this vocabulary question by selecting ONE option from the following choices.
+          content: `Answer this vocabulary or analogy question by selecting ONE option from the following choices.
           
           Question: ${question}
           
