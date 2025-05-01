@@ -5,23 +5,8 @@ const OPENAI_MODEL = "gpt-4o";
 
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
-// Track words used across all batches to prevent repetition
-let usedVocabularyWords = new Set();
-let usedAnalogyWords = new Set();
-
-// Function to extract words from a string for tracking
-function extractVocabularyWords(text) {
-  // Extract individual words, ignoring common words, articles, prepositions, etc.
-  const words = text.toLowerCase().match(/\b[a-z]{5,}\b/g) || [];
-  return new Set(words);
-}
-
 export async function generateQuestions(difficulty: string, numQuestions: number) {
   try {
-    // Reset the used words when starting a new question set
-    usedVocabularyWords.clear();
-    usedAnalogyWords.clear();
-    
     console.log(`Generating ${numQuestions} unique vocabulary questions at ${difficulty} difficulty...`);
     
     // For large number of questions, break into smaller batches
@@ -36,27 +21,8 @@ export async function generateQuestions(difficulty: string, numQuestions: number
         const batchSize = Math.min(5, numQuestions - (i * 5));
         console.log(`Generating batch ${i+1}/${batches} with ${batchSize} questions...`);
         
-        // Pass the previously used words to avoid repetition
-        const batchQuestions = await generateQuestionBatch(
-          difficulty, 
-          batchSize, 
-          Array.from(usedVocabularyWords), 
-          Array.from(usedAnalogyWords)
-        );
-        
-        // Update the sets of used words with new words from this batch
-        for (const question of batchQuestions) {
-          if (question.type === "mcq") {
-            // Extract word being defined from the question
-            const questionWords = extractVocabularyWords(question.question);
-            questionWords.forEach(word => usedVocabularyWords.add(word));
-          } else if (question.type === "analogy") {
-            // Extract words from analogy
-            const analogyWords = extractVocabularyWords(question.question);
-            analogyWords.forEach(word => usedAnalogyWords.add(word));
-          }
-        }
-        
+        // Generate a batch with a strong uniqueness prompt
+        const batchQuestions = await generateQuestionBatch(difficulty, batchSize, i+1, batches);
         batchResults.push(...batchQuestions);
         
         // Make sure we have enough questions
@@ -71,7 +37,7 @@ export async function generateQuestions(difficulty: string, numQuestions: number
       return batchResults.slice(0, numQuestions);
     } else {
       // Generate a single batch for 5 or fewer questions
-      return await generateQuestionBatch(difficulty, numQuestions, [], []);
+      return await generateQuestionBatch(difficulty, numQuestions, 1, 1);
     }
   } catch (error) {
     console.error("Error generating questions:", error);
@@ -80,21 +46,14 @@ export async function generateQuestions(difficulty: string, numQuestions: number
 }
 
 // Helper function to generate a batch of questions
-async function generateQuestionBatch(
-  difficulty: string, 
-  numQuestions: number, 
-  avoidVocabWords: string[] = [], 
-  avoidAnalogyWords: string[] = []
-) {
+async function generateQuestionBatch(difficulty: string, numQuestions: number, batchNumber: number, totalBatches: number) {
   try {
-    // Create a prompt that ensures uniqueness
-    const avoidVocabWordsText = avoidVocabWords.length > 0 
-      ? `\n- IMPORTANT: Do NOT use any of these vocabulary words that have already been used: ${avoidVocabWords.join(', ')}` 
-      : '';
-    
-    const avoidAnalogyWordsText = avoidAnalogyWords.length > 0 
-      ? `\n- IMPORTANT: Do NOT use any of these analogy words that have already been used: ${avoidAnalogyWords.join(', ')}` 
-      : '';
+    // Create a system message that strongly emphasizes uniqueness
+    const systemMessage = `You are a vocabulary expert who creates challenging and educational questions about words, their meanings, and relationships.
+
+Your specialty is creating varied and diverse questions that never repeat vocabulary words.
+${totalBatches > 1 ? `This is batch ${batchNumber} of ${totalBatches}, so ensure you use different vocabulary than you would in other batches.` : ''}
+Each question must focus on a distinct vocabulary concept with no word overlap between questions.`;
 
     // Make request with enhanced uniqueness instructions
     const response = await openai.chat.completions.create({
@@ -102,7 +61,7 @@ async function generateQuestionBatch(
       messages: [
         {
           role: "system",
-          content: "You are a vocabulary expert who creates challenging and educational questions about words, their meanings, and relationships. You must ensure complete uniqueness - no repeating words across any questions."
+          content: systemMessage
         },
         {
           role: "user",
@@ -112,10 +71,10 @@ async function generateQuestionBatch(
           - All questions should be at ${difficulty} difficulty level
           - Each question should have exactly 4 options (A, B, C, D)
           - Include the correct answer and a detailed explanation for each question
-          - For MCQs, each question must be about a completely different vocabulary word
-          - For analogies, follow the format "WORD1 is to WORD2 as WORD3 is to: [options]"
-          - Use different types of words (nouns, verbs, adjectives) across questions
-          - ENSURE DIVERSITY: Each question must feature completely different vocabulary words${avoidVocabWordsText}${avoidAnalogyWordsText}
+          - DIVERSITY IS CRITICAL: Each question must focus on completely different vocabulary words
+          - For MCQs, each must ask about a different word - DO NOT reuse any vocabulary words between questions
+          - For analogies, follow the format "WORD1 is to WORD2 as WORD3 is to: [options]" with unique word pairs
+          - Use a wide variety of word types (nouns, verbs, adjectives, adverbs) across all questions
           
           Respond with a JSON array named "questions" where each question object has these properties:
           - type: "mcq" or "analogy"
