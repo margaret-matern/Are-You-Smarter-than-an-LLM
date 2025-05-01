@@ -1,6 +1,7 @@
 import OpenAI from "openai";
 
-// the newest OpenAI model is "gpt-4o" which was released May 13, 2024. do not change this unless explicitly requested by the user
+// OpenAI model selection - can be changed to a smaller model if needed
+// Options include: "gpt-3.5-turbo", "gpt-4-turbo", or "gpt-4o"
 const OPENAI_MODEL = "gpt-4o";
 
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
@@ -53,7 +54,13 @@ async function generateQuestionBatch(difficulty: string, numQuestions: number, b
 
 Your specialty is creating varied and diverse questions that never repeat vocabulary words.
 ${totalBatches > 1 ? `This is batch ${batchNumber} of ${totalBatches}, so ensure you use different vocabulary than you would in other batches.` : ''}
-Each question must focus on a distinct vocabulary concept with no word overlap between questions.`;
+Each question must focus on a distinct vocabulary concept with no word overlap between questions.
+
+When creating questions at "${difficulty}" difficulty level:
+- Easy: Use common vocabulary words that most high school students would know
+- Medium: Use moderately challenging words that a college-educated person would know
+- Hard: Use advanced vocabulary that might appear on graduate school exams
+- Mixed: Include a balanced mix of all difficulty levels`;
 
     // Make request with enhanced uniqueness instructions
     const response = await openai.chat.completions.create({
@@ -87,7 +94,7 @@ Each question must focus on a distinct vocabulary concept with no word overlap b
         }
       ],
       response_format: { type: "json_object" },
-      temperature: 1.0 // Increase creativity to get more diverse results
+      temperature: 0.7 // Balanced creativity and consistency
     });
 
     // Parse the JSON response
