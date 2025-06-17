@@ -6,40 +6,17 @@ const OPENAI_MODEL = "gpt-4o";
 
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
-export async function generateQuestions(difficulty: string, numQuestions: number) {
+export async function generateQuestions(
+  difficulty: string,
+  numQuestions: number,
+) {
   try {
-    console.log(`Generating ${numQuestions} unique vocabulary questions at ${difficulty} difficulty...`);
-    
-    // For large number of questions, break into smaller batches
-    if (numQuestions > 5) {
-      console.log(`Breaking into batches of 5 questions each...`);
-      
-      // Generate questions in batches of 5
-      const batches = Math.ceil(numQuestions / 5);
-      const batchResults = [];
-      
-      for (let i = 0; i < batches; i++) {
-        const batchSize = Math.min(5, numQuestions - (i * 5));
-        console.log(`Generating batch ${i+1}/${batches} with ${batchSize} questions...`);
-        
-        // Generate a batch with a strong uniqueness prompt
-        const batchQuestions = await generateQuestionBatch(difficulty, batchSize, i+1, batches);
-        batchResults.push(...batchQuestions);
-        
-        // Make sure we have enough questions
-        if (batchResults.length >= numQuestions) {
-          break;
-        }
-      }
-      
-      console.log(`Generated ${batchResults.length} unique questions successfully.`);
-      
-      // Return the requested number of questions
-      return batchResults.slice(0, numQuestions);
-    } else {
-      // Generate a single batch for 5 or fewer questions
-      return await generateQuestionBatch(difficulty, numQuestions, 1, 1);
-    }
+    console.log(
+      `Generating ${numQuestions} unique vocabulary questions at ${difficulty} difficulty...`,
+    );
+
+    // Generate all questions in a single batch request
+    return await generateQuestionBatch(difficulty, numQuestions, 1, 1);
   } catch (error) {
     console.error("Error generating questions:", error);
     throw error;
