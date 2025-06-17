@@ -147,7 +147,15 @@ export class MemStorage implements IStorage {
   // Battle Answer methods
   async saveBattleAnswer(battleAnswer: InsertBattleAnswer): Promise<BattleAnswer> {
     const id = this.battleAnswerIdCounter++;
-    const answer: BattleAnswer = { ...battleAnswer, id };
+    const answer: BattleAnswer = {
+      id,
+      battleId: battleAnswer.battleId,
+      questionId: battleAnswer.questionId,
+      userAnswer: battleAnswer.userAnswer ?? null,
+      aiAnswer: battleAnswer.aiAnswer ?? null,
+      isUserCorrect: battleAnswer.isUserCorrect,
+      isAiCorrect: battleAnswer.isAiCorrect,
+    };
     this.battleAnswersMap.set(id, answer);
     return answer;
   }
